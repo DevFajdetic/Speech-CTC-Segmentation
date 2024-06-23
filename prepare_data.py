@@ -1,17 +1,3 @@
-# Copyright (c) 2020, NVIDIA CORPORATION.  All rights reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import argparse
 import os
 import re
@@ -47,18 +33,21 @@ parser.add_argument("--n_jobs", default=-2, type=int, help="The maximum number o
 parser.add_argument(
     "--language",
     type=str,
-    default="en",
-    choices=["en", "ru", "de", "es", 'other'],
+    default="other",
+    choices=["en", 'other'],
     help='Add target language based on the num2words list of supported languages',
 )
 parser.add_argument(
     "--cut_prefix", type=int, default=0, help="Number of seconds to cut from the beginning of the audio files.",
 )
 parser.add_argument(
-    "--model", type=str, default="QuartzNet15x5Base-En", help="Pre-trained model name or path to model checkpoint"
+    "--model", type=str, default="stt_hr_conformer_ctc_large", help="Pre-trained model name or path to model checkpoint"
 )
 parser.add_argument(
     "--max_length", type=int, default=40, help="Max number of words of the text segment for alignment."
+)
+parser.add_argument(
+    "--per_capital", type=bool, default=False, help="."
 )
 parser.add_argument(
     "--additional_split_symbols",
@@ -108,6 +97,7 @@ def split_text(
     remove_brackets: bool = True,
     do_lower_case: bool = True,
     max_length: bool = 100,
+    per_capital: bool = False,
     additional_split_symbols: bool = None,
     use_nemo_normalization: bool = False,
     n_jobs: Optional[int] = 1,
@@ -236,10 +226,14 @@ def split_text(
 
     # when no punctuation marks present in the input text, split based on max_length
     if len(sentences) == 1:
-        sent = sentences[0].split()
-        sentences = []
-        for i in range(0, len(sent), max_length):
-            sentences.append(" ".join(sent[i : i + max_length]))
+        if not per_capital:
+            sent = sentences[0].split()
+            sentences = []
+            for i in range(0, len(sent), max_length):
+                sentences.append(" ".join(sent[i : i + max_length]))
+        else:
+            sent = list(sentences[0])
+            sentences = [" ".join(sent)]
     sentences = [s.strip() for s in sentences if s.strip()]
 
     # save split text with original punctuation and case
@@ -351,6 +345,7 @@ if __name__ == "__main__":
                 vocabulary=vocabulary,
                 language=args.language,
                 max_length=args.max_length,
+                per_capital=args.per_capital,
                 additional_split_symbols=args.additional_split_symbols,
                 use_nemo_normalization=args.use_nemo_normalization,
                 n_jobs=args.n_jobs,
